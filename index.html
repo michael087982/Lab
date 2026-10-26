@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Lab Daily Checklist</title>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+  :root {
+    --bg: #f3f6f7; --card: #ffffff; --text: #17262c; --muted: #5f7178; --line: #e1e8eb;
+    --accent: #0e7f81; --accent-soft: #e2f3f3; --done: #17894a; --warn: #b7410e; --warn-soft: #fdf0e7;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e1517; --card: #162125; --text: #e5eef0; --muted: #92a5ac; --line: #24343a;
+      --accent: #3fc0c2; --accent-soft: #15302f; --done: #4ade80; --warn: #fb923c; --warn-soft: #34221a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.45 system-ui, -apple-system, "Segoe UI", "Noto Sans Thai", sans-serif; }
+  main { max-width: 560px; margin: 0 auto; padding: 20px 16px 48px; }
+  [hidden] { display: none !important; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .muted { color: var(--muted); font-size: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+
+  .center { min-height: 70vh; display: grid; place-items: center; text-align: center; }
+  .spinner { width: 32px; height: 32px; border: 3px solid var(--line); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin .8s linear infinite; margin: 0 auto 12px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  label.field { display: block; font-size: 14px; font-weight: 600; margin: 18px 0 6px; }
+  input[type=email] { width: 100%; font: inherit; padding: 12px 14px; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--text); }
+  input[type=email]:focus { outline: 2px solid var(--accent); border-color: transparent; }
+  button { font: inherit; font-weight: 600; border: 0; border-radius: 10px; padding: 12px 16px;
+    background: var(--accent); color: #fff; cursor: pointer; width: 100%; margin-top: 14px; }
+  button:disabled { opacity: .6; cursor: default; }
+  .error { color: var(--warn); font-size: 14px; margin-top: 10px; min-height: 1em; }
+
+  header.top { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; margin-bottom: 14px; }
+  .count { text-align: right; white-space: nowrap; }
+  .count b { font-size: 24px; }
+  .bar { height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; margin-bottom: 16px; }
+  .bar span { display: block; height: 100%; background: var(--accent); transition: width .3s; }
+  .bar.full span { background: var(--done); }
+
+  .banner { border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; font-size: 14px;
+    display: flex; gap: 10px; align-items: center; justify-content: space-between; }
+  .banner.warn { background: var(--warn-soft); color: var(--warn); }
+  .banner.info { background: var(--accent-soft); color: var(--text); }
+  .banner.good { background: var(--accent-soft); color: var(--done); font-weight: 600; }
+  .banner button { width: auto; margin: 0; padding: 8px 12px; font-size: 14px; white-space: nowrap; }
+
+  ul.tasks { list-style: none; margin: 0; padding: 0; background: var(--card);
+    border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  ul.tasks li + li { border-top: 1px solid var(--line); }
+  .task { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; cursor: pointer;
+    -webkit-tap-highlight-color: transparent; }
+  .task input { position: absolute; opacity: 0; pointer-events: none; }
+  .box { flex: none; width: 24px; height: 24px; border-radius: 7px; border: 2px solid var(--muted);
+    display: grid; place-items: center; margin-top: 1px; transition: background .15s, border-color .15s; }
+  .box svg { width: 14px; height: 14px; opacity: 0; }
+  .task input:checked + .box { background: var(--done); border-color: var(--done); }
+  .task input:checked + .box svg { opacity: 1; }
+  .task input:focus-visible + .box { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .task input:disabled ~ .body { opacity: .5; }
+  .body { flex: 1; min-width: 0; }
+  .title { display: block; font-weight: 500; }
+  .task input:checked ~ .body .title { color: var(--muted); text-decoration: line-through; }
+  .details { display: block; font-size: 13px; color: var(--muted); }
+  .time { flex: none; font-size: 13px; color: var(--done); font-variant-numeric: tabular-nums; margin-top: 2px; }
+
+  .toast { position: fixed; left: 16px; right: 16px; bottom: 20px; max-width: 528px; margin: 0 auto;
+    background: var(--text); color: var(--bg); padding: 12px 14px; border-radius: 10px; font-size: 14px; }
+</style>
+</head>
+<body>
+<main>
+  <section id="loading" class="center">
+    <div><div class="spinner"></div><div class="muted">Loading checklist&hellip;</div></div>
+  </section>
+
+  <section id="fatal" class="center" hidden>
+    <div class="card"><h1>Can&rsquo;t open the checklist</h1><p class="muted" id="fatalMsg"></p></div>
+  </section>
+
+  <section id="link" class="center" hidden>
+    <form class="card" id="linkForm" style="width:100%;text-align:left" novalidate>
+      <h1 id="hello">Welcome</h1>
+      <p class="muted" style="margin:0">Enter the work email your supervisor registered. You only do this once. After that, your LINE account signs you in.</p>
+      <label class="field" for="email">Work email</label>
+      <input type="email" id="email" autocomplete="email" inputmode="email" placeholder="name@hospital.com" required>
+      <button type="submit" id="linkBtn">Link my LINE account</button>
+      <div class="error" id="linkErr" role="alert"></div>
+    </form>
+  </section>
+
+  <section id="app" hidden>
+    <header class="top">
+      <div>
+        <h1 id="who"></h1>
+        <div class="muted" id="when"></div>
+      </div>
+      <div class="count"><b id="doneCount">0</b><span class="muted"> / <span id="totalCount">0</span> done</span></div>
+    </header>
+    <div class="bar" id="bar"><span id="barFill" style="width:0"></span></div>
+    <div id="banners"></div>
+    <ul class="tasks" id="tasks"></ul>
+  </section>
+</main>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+// ===== Fill these in (see SETUP.md) =====
+const CONFIG = {
+  LIFF_ID: '2012198089-geTm3ZEy',
+  API_URL: 'https://script.google.com/macros/s/AKfycbwzQLQe3Q6Cq4xD5XkUuHvwC1PXaW7j5Mq_-gkyHSY2qYL9nXpK2Hsw3-rxhZctVqyI/exec',     // ends with /exec
+  OA_ADD_FRIEND_URL: 'https://line.me/R/ti/p/@338xlpvl',
+  TIMEZONE: 'Asia/Bangkok',
+};
+
+const DEMO = new URLSearchParams(location.search).has('demo');  // open with ?demo to preview without LINE
+const $ = id => document.getElementById(id);
+let state = null;
+let notFriend = false;
+
+init();
+
+async function init() {
+  try {
+    if (!DEMO) {
+      await liff.init({ liffId: CONFIG.LIFF_ID });
+      if (!liff.isLoggedIn()) { liff.login({ redirectUri: location.href }); return; }
+    }
+    const s = await api('session');
+    sessionStorage.removeItem('relogin');
+    s.linked ? showChecklist(s) : showLink(s.lineName);
+    if (!DEMO) checkFriendship();
+  } catch (e) {
+    show('fatal');
+    $('fatalMsg').textContent = e.message || String(e);
+  }
+}
+
+async function api(action, data = {}) {
+  if (DEMO) return demoApi(action, data);
+  const res = await fetch(CONFIG.API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },  // avoids a CORS preflight Apps Script can't answer
+    body: JSON.stringify(Object.assign({ action, idToken: liff.getIDToken() }, data)),
+  });
+  const json = await res.json();
+  if (!json.ok) {
+    if (json.error === 'auth' && !sessionStorage.getItem('relogin')) {
+      sessionStorage.setItem('relogin', '1');
+      liff.logout();
+      location.reload();
+      return new Promise(() => {});
+    }
+    throw new Error(json.message);
+  }
+  return json;
+}
+
+async function checkFriendship() {
+  try {
+    const f = await liff.getFriendship();
+    notFriend = !f.friendFlag;
+    if (state) renderBanners();
+  } catch (_) { /* friendship check needs the OA linked to the LINE Login channel */ }
+}
+
+function show(id) {
+  ['loading', 'fatal', 'link', 'app'].forEach(s => { $(s).hidden = s !== id; });
+}
+
+// ----- Link screen -----
+function showLink(lineName) {
+  show('link');
+  $('hello').textContent = lineName ? `Welcome, ${lineName}` : 'Welcome';
+  $('email').focus();
+}
+
+$('linkForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const email = $('email').value.trim();
+  $('linkErr').textContent = '';
+  if (!/^\S+@\S+\.\S+$/.test(email)) { $('linkErr').textContent = 'Please enter a valid email.'; return; }
+  $('linkBtn').disabled = true;
+  try {
+    showChecklist(await api('link', { email }));
+  } catch (err) {
+    $('linkErr').textContent = err.message;
+  } finally {
+    $('linkBtn').disabled = false;
+  }
+});
+
+// ----- Checklist -----
+function showChecklist(s) {
+  state = s;
+  show('app');
+  $('who').textContent = s.staff.name || s.staff.email;
+  $('when').textContent = formatDate(s.date) + ' \u00B7 shift ends ' + s.shiftEnd;
+
+  const done = s.tasks.filter(t => t.checkedAt).length;
+  $('doneCount').textContent = done;
+  $('totalCount').textContent = s.tasks.length;
+  $('barFill').style.width = (s.tasks.length ? done / s.tasks.length * 100 : 0) + '%';
+  $('bar').classList.toggle('full', done === s.tasks.length && done > 0);
+
+  const ul = $('tasks');
+  ul.replaceChildren(...s.tasks.map(taskRow));
+  renderBanners();
+}
+
+function taskRow(t) {
+  const li = document.createElement('li');
+  li.innerHTML = `
+    <label class="task">
+      <input type="checkbox">
+      <span class="box"><svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span>
+      <span class="body"><span class="title"></span><span class="details"></span></span>
+      <span class="time"></span>
+    </label>`;
+  const input = li.querySelector('input');
+  input.checked = !!t.checkedAt;
+  li.querySelector('.title').textContent = t.task;
+  li.querySelector('.details').textContent = t.details;
+  li.querySelector('.time').textContent = t.checkedAt ? '\u2713 ' + t.checkedAt : '';
+  input.addEventListener('change', () => toggle(t, input));
+  return li;
+}
+
+async function toggle(t, input) {
+  input.disabled = true;
+  try {
+    showChecklist(await api('check', { taskId: t.id, checked: input.checked }));
+  } catch (err) {
+    input.checked = !input.checked;
+    input.disabled = false;
+    toast(err.message);
+  }
+}
+
+function renderBanners() {
+  const box = $('banners');
+  box.replaceChildren();
+  const left = state.tasks.filter(t => !t.checkedAt).length;
+
+  if (notFriend) {
+    const b = banner('info', 'Add our LINE Official Account to get shift-end reminders.');
+    const btn = document.createElement('button');
+    btn.textContent = 'Add friend';
+    btn.onclick = () => liff.openWindow({ url: CONFIG.OA_ADD_FRIEND_URL, external: false });
+    b.append(btn);
+    box.append(b);
+  }
+  if (state.tasks.length && left === 0) {
+    box.append(banner('good', 'All tasks done for today. Thank you!'));
+  } else if (nowHHMM() >= state.shiftEnd) {
+    box.append(banner('warn', `Shift has ended. ${left} task${left > 1 ? 's' : ''} still unchecked.`));
+  }
+}
+
+function banner(kind, text) {
+  const d = document.createElement('div');
+  d.className = 'banner ' + kind;
+  const span = document.createElement('span');
+  span.textContent = text;
+  d.append(span);
+  return d;
+}
+
+function nowHHMM() {
+  return new Intl.DateTimeFormat('en-GB', { timeZone: CONFIG.TIMEZONE, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+    .format(new Date());
+}
+
+function formatDate(ymd) {
+  return new Date(ymd + 'T00:00:00Z').toLocaleDateString('en-GB',
+    { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+}
+
+let toastTimer;
+function toast(msg) {
+  $('toast').textContent = msg;
+  $('toast').hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { $('toast').hidden = true; }, 3500);
+}
+
+// ----- Demo mode (?demo) : fake backend so you can preview the page in any browser -----
+const demoData = {
+  linked: false,
+  tasks: [
+    ['T01', 'Disinfect bench & equipment with 70% alcohol', 'Start and end of shift'],
+    ['T02', 'Check centrifuge (lid seal, balance, clean rotor & buckets)', 'Report any vibration or noise'],
+    ['T03', 'Record refrigerator & freezer temperatures', 'Reagent fridge 2\u20138 \u00B0C, freezer \u2264 \u221220 \u00B0C'],
+    ['T04', 'Run hematology analyzer QC (L1 / L2 / L3)', 'Do not release results if QC fails'],
+    ['T05', 'Run chemistry analyzer QC', 'Accept per Westgard rules'],
+    ['T06', 'Check biosafety cabinet airflow & wipe down', 'Alarm off, sash at correct height'],
+    ['T07', 'Check reagent stock & expiry dates', 'Label opened date on new reagents'],
+    ['T08', 'Check sharps & biohazard containers', 'Replace when \u00BE full'],
+    ['T09', 'Check water bath / incubator temperature', '37 \u00B0C \u00B1 1'],
+    ['T10', 'Check PPE stock & eyewash station', 'Gloves, masks, gowns; flush eyewash'],
+  ].map(([id, task, details]) => ({ id, task, details, checkedAt: null })),
+};
+async function demoApi(action, data) {
+  await new Promise(r => setTimeout(r, 250));
+  const snapshot = () => ({
+    ok: true, linked: true, staff: { email: demoData.email, name: 'Demo Staff' },
+    date: new Date().toLocaleDateString('en-CA', { timeZone: CONFIG.TIMEZONE }), shiftEnd: '17:00',
+    tasks: demoData.tasks.map(t => Object.assign({}, t)),
+  });
+  if (action === 'session') return demoData.linked ? snapshot() : { ok: true, linked: false, lineName: 'Demo User' };
+  if (action === 'link') { demoData.linked = true; demoData.email = data.email; return snapshot(); }
+  if (action === 'check') {
+    demoData.tasks.find(t => t.id === data.taskId).checkedAt = data.checked ? nowHHMM() : null;
+    return snapshot();
+  }
+}
+</script>
+</body>
+</html>
